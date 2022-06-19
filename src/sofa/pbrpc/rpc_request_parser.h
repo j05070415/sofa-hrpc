@@ -6,6 +6,7 @@
 #define _SOFA_PBRPC_RPC_REQUEST_PARSER_H_
 
 #include <vector>
+#include <memory>
 
 #include <sofa/pbrpc/rpc_request.h>
 
@@ -13,7 +14,7 @@ namespace sofa {
 namespace pbrpc {
 
 class RpcRequestParser;
-typedef boost::shared_ptr<RpcRequestParser> RpcRequestParserPtr;
+typedef std::shared_ptr<RpcRequestParser> RpcRequestParserPtr;
 
 class RpcRequestParser
 {
@@ -40,7 +41,7 @@ public:
     // @retval 1  request data ready
     // @retval 0  there are more bytes to be read
     // @retval -1  parse request fail
-    virtual int Parse(const char* buf, int data_size, int offset, int* bytes_consumed) = 0;
+    virtual int Parse(const std::shared_ptr<char>& buf, int data_size, int offset, int* bytes_consumed) = 0;
 
     // Get the parsed request data.
     //

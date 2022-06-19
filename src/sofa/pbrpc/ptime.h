@@ -20,19 +20,7 @@ typedef boost::posix_time::time_duration TimeDuration;
 inline TimeDuration time_duration_microseconds(int64_t);
 inline PTime ptime_now()
 {
-#ifdef __linux__
-    struct timespec ts = { 0, 0 };
-    clock_gettime(CLOCK_REALTIME, &ts);
-    time_t microsec = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
-#else
-    struct timespec tv = { 0, 0 };
-    timespec_get(&tv, TIME_UTC);
-    time_t microsec = tv.tv_sec* 1000000 + tv.tv_nsec/1000;
-#endif
-    TimeDuration td = time_duration_microseconds(microsec);
-    PTime pt(boost::gregorian::date(1970, 1, 1));
-    pt += td;
-    return pt;
+    return boost::posix_time::microsec_clock::local_time();
 }
 
 inline PTime ptime_infin()
@@ -42,21 +30,7 @@ inline PTime ptime_infin()
 
 inline std::string ptime_to_string(const PTime& t)
 {
-    // see <http://www.boost.org/doc/libs/1_40_0/doc/html/date_time/examples.html>
-    typedef boost::date_time::c_local_adjustor<PTime> local_adj;
-    PTime lt = local_adj::utc_to_local(t);
-    PTime::date_type date = lt.date();
-    TimeDuration tod = lt.time_of_day();
-    char buf[64];
-    snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d.%06ld",
-            (int)date.year(),
-            (int)date.month(),
-            (int)date.day(),
-            tod.hours(),
-            tod.minutes(),
-            tod.seconds(),
-            tod.fractional_seconds());
-    return buf; 
+    return boost::posix_time::to_iso_extended_string(t);
 }
 
 inline TimeDuration time_duration_hours(int64_t n)

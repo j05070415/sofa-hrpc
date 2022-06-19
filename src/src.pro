@@ -2,7 +2,7 @@
 #
 # Project created by QtCreator 2015-06-30T14:43:15
 TEMPLATE = lib
-CONFIG += staticlib
+CONFIG += staticlib c++11
 CONFIG -= app_bundle qt
 
 include(src.pri)
@@ -13,7 +13,9 @@ CONFIG(debug, debug|release) {
         TARGET = sofa-hrpc
 }
 
-DESTDIR = $$PWD/../bin
+#DEFINES += SOFA_PBRPC_ENABLE_FUNCTION_TRACE
+
+DESTDIR = $$PWD/../../src/bin
 HEADERS += \
     sofa/pbrpc/http-agent/http_agent.h \
     sofa/pbrpc/ascii.h \

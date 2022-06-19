@@ -133,8 +133,9 @@ private:
     LockType _add_remove_lock;
     std::set<std::string> _added_set;
 
-    AtomicCounter64 _request_count;
-    AtomicCounter _wait_count;
+    //DotDot, QQ:824044645
+	std::atomic_ullong _request_count = {0};
+	std::atomic_ulong _wait_count = {0};
 
     TimeoutManagerPtr _timeout_manager;
     TimeoutManager::Id _timer_id;

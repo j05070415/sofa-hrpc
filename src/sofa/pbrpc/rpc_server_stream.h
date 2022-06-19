@@ -9,6 +9,8 @@
 #include <sofa/pbrpc/rpc_error_code.h>
 #include <sofa/pbrpc/rpc_meta.pb.h>
 
+#include <atomic>
+
 namespace sofa {
 namespace pbrpc {
 
@@ -153,7 +155,9 @@ private:
 private:
     ReceivedRequestCallback _received_request_callback;
     ClosedServerStreamCallback _closed_stream_callback;
-    AtomicCounter _pending_process_count; // count of processing requests to be sent by this stream
+    //Modify by DotDot, QQ:824044645
+//    AtomicCounter _pending_process_count; // count of processing requests to be sent by this stream
+    std::atomic_uint _pending_process_count = {0};
 }; // class RpcServerStream
 
 } // namespace pbrpc

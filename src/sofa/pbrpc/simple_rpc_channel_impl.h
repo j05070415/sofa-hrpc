@@ -56,7 +56,8 @@ private:
     bool _resolve_address_succeed;
     RpcEndpoint _remote_endpoint;
 
-    AtomicCounter _wait_count;
+    //DotDot, QQ:824044645
+    std::atomic_ulong _wait_count = {0};
 
     SOFA_PBRPC_DISALLOW_EVIL_CONSTRUCTORS(SimpleRpcChannelImpl);
 }; // class SimpleRpcChannelImpl

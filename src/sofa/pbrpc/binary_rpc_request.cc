@@ -120,7 +120,7 @@ void BinaryRpcRequest::ProcessRequest(
         cntl->SetServerTimeout(_req_meta.server_timeout());
     }
     cntl->SetRequestReceivedTime(_received_time);
-    //Modify by Dot Dot, QQ:824044645
+    //Modify by DotDot, QQ:824044645
     cntl->SetResponseCompressType(_req_meta.expected_response_compress_type());
 
     CallMethod(method_board, controller, request, response);

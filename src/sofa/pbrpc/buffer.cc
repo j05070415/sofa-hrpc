@@ -21,37 +21,56 @@ ReadBuffer::ReadBuffer()
 
 ReadBuffer::~ReadBuffer()
 {
-    for (BufHandleListIterator it = _buf_list.begin();
-            it != _buf_list.end(); ++it)
-    {
-        TranBufPool::free(it->data);
-    }
+    //Modified by DotDot, 2021/10/03, QQ:824044645
+//    std::lock_guard<std::mutex> locker(_mutex);
+
+//    for (BufHandleListIterator it = _buf_list.begin();
+//            it != _buf_list.end(); ++it)
+//    {
+        //Modified by DotDot, 2020/8/24, QQ:824044645
+//        it->mutex->lock();
+//        TranBufPool::free(it->data);
+//        it->mutex->unlock();
+//    }
     _buf_list.clear();
+
+    //Modified by DotDot, 2021/10/03, QQ:824044645
+    _cur_it = _buf_list.begin();
 }
 
 void ReadBuffer::Append(const BufHandle& buf_handle)
 {
+    //Modified by DotDot, 2021/10/03, QQ:824044645
+//    std::lock_guard<std::mutex> locker(_mutex);
     SCHECK_GT(buf_handle.size, 0);
+
+    //Modified by DotDot, 2021/09/20, QQ:824044645, lock before push
+//    buf_handle.mutex->lock();
+//    TranBufPool::add_ref(buf_handle.data);
+//    buf_handle.mutex->unlock();
+
     _buf_list.push_back(buf_handle);
-    buf_handle.mutex->lock();
-    TranBufPool::add_ref(buf_handle.data);
-    buf_handle.mutex->unlock();
-    _total_block_size += TranBufPool::block_size(buf_handle.data);
+
+    _total_block_size += buf_handle.size;
     _total_bytes += buf_handle.size;
     _cur_it = _buf_list.begin();
 }
 
 void ReadBuffer::Append(const ReadBuffer* read_buffer)
 {
+    //Modified by DotDot, 2021/10/03, QQ:824044645
+//    std::lock_guard<std::mutex> locker(_mutex);
     SCHECK(read_buffer != NULL);
+
     BufHandleList::const_iterator it = read_buffer->_buf_list.begin();
     BufHandleList::const_iterator end = read_buffer->_buf_list.end();
     for (; it != end; ++it) 
     {
+        //Modified by DotDot, 2021/09/20, QQ:824044645, lock before push
+//        it->mutex->lock();
+//        TranBufPool::add_ref(it->data);
+//        it->mutex->unlock();
         _buf_list.push_back(*it);
-        it->mutex->lock();
-        TranBufPool::add_ref(it->data);
-        it->mutex->unlock();
     }
     _total_block_size += read_buffer->_total_block_size;
     _total_bytes += read_buffer->_total_bytes;
@@ -80,17 +99,19 @@ std::string ReadBuffer::ToString() const
     for (BufHandleList::const_iterator it = _buf_list.begin();
             it != _buf_list.end(); ++it)
     {
-        str.append(it->data + it->offset, it->size);
+        str.append(it->data.get() + it->offset, it->size);
     }
     return str;
 }
 
 bool ReadBuffer::Next(const void** data, int* size)
 {
+    //Modified by DotDot, 2021/10/03, QQ:824044645
+//    std::lock_guard<std::mutex> locker(_mutex);
     if (_cur_it != _buf_list.end())
     {
         SCHECK_LT(_cur_pos, _cur_it->size);
-        *data = _cur_it->data + _cur_it->offset + _cur_pos;
+        *data = _cur_it->data.get() + _cur_it->offset + _cur_pos;
         *size = _cur_it->size - _cur_pos;
         ++_cur_it;
         _cur_pos = 0;
@@ -155,11 +176,16 @@ WriteBuffer::WriteBuffer()
 
 WriteBuffer::~WriteBuffer()
 {
-    for (BufHandleListIterator it = _buf_list.begin();
-            it != _buf_list.end(); ++it)
-    {
-        TranBufPool::free(it->data);
-    }
+//    for (BufHandleListIterator it = _buf_list.begin();
+//            it != _buf_list.end(); ++it)
+//    {
+        //Modified by DotDot, 2020/8/24, QQ:824044645
+//        it->mutex->lock();
+//        TranBufPool::free(it->data);
+//        it->mutex->unlock();
+//        free(it->data);
+//        it->data = nullptr;
+//    }
     _buf_list.clear();
 }
 
@@ -188,7 +214,9 @@ void WriteBuffer::SwapOut(ReadBuffer* is)
             buf_handle.offset = 0; // capacity -> offset
             is->Append(buf_handle);
         }
-        TranBufPool::free(buf_handle.data);
+//        buf_handle.mutex->lock();
+//        TranBufPool::free(buf_handle.data);
+//        buf_handle.mutex->unlock();
         _buf_list.pop_front();
     }
     _total_block_size = 0;
@@ -249,12 +277,12 @@ void WriteBuffer::SetData(int64 pos, const char* data, int size)
         int cur_size = cur_it->size - cur_offset;
         if (cur_size > size)
         {
-            memcpy(cur_it->data + cur_offset, data, size);
+            memcpy(cur_it->data.get() + cur_offset, data, size);
             size = 0;
         }
         else
         {
-            memcpy(cur_it->data + cur_offset, data, cur_size);
+            memcpy(cur_it->data.get() + cur_offset, data, cur_size);
             size -= cur_size;
             data += cur_size;
             ++cur_it;
@@ -275,7 +303,7 @@ bool WriteBuffer::Next(void** data, int* size)
         }
         last = _buf_list.rbegin();
     }
-    *data = last->data + last->size;
+    *data = last->data.get() + last->size;
     *size = last->capacity - last->size;
     last->size = last->capacity;
     _last_bytes = *size;
@@ -304,13 +332,19 @@ bool WriteBuffer::Extend()
 {
     // incrementally extend block
     unsigned int current_factor = _buf_list.size() + _base_block_factor;
-    char* block = static_cast<char*>(TranBufPool::malloc((std::min)(
-                    SOFA_PBRPC_TRAN_BUF_BLOCK_MAX_FACTOR,
-                    current_factor)));
+//    char* block = static_cast<char*>(TranBufPool::malloc((std::min)(
+//                    SOFA_PBRPC_TRAN_BUF_BLOCK_MAX_FACTOR,
+//                    current_factor)));
+    auto minfactor = (std::min)(
+                SOFA_PBRPC_TRAN_BUF_BLOCK_MAX_FACTOR,
+                current_factor);
+    auto size = SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << minfactor;
+    char* block = new char[size];
     if (block == NULL) return false;
-    _buf_list.push_back(BufHandle(block, TranBufPool::capacity(block)));
-    _total_block_size += TranBufPool::block_size(block);
-    _total_capacity += TranBufPool::capacity(block);
+    std::shared_ptr<char> buff(block);
+    _buf_list.push_back(BufHandle(buff, size));
+    _total_block_size += size;
+    _total_capacity += size;
     return true;
 }
 

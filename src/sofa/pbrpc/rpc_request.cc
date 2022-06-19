@@ -53,6 +53,8 @@ void RpcRequest::CallMethod(
                 RpcEndpointToString(_remote_endpoint).c_str(), cntl->SequenceId(),
                 (cntl->ServerTimeout() * 1000), server_wait_time_us);
 #endif
+            //Add by DotDot, QQ:824044645
+            SendFailedResponse(cntl->RpcServerStream(), RPC_ERROR_REQUEST_TIMEOUT, "Server CallMethod Timerout");
             delete request;
             delete response;
             delete controller;
@@ -108,23 +110,25 @@ void RpcRequest::OnCallMethodDone(
         if (server_used_time_us > cntl->ServerTimeout() * 1000)
         {
 #if defined( LOG )
-        LOG(WARNING) << "OnCallMethodDone(): " << RpcEndpointToString(_remote_endpoint)
-                     << " {" << cntl->SequenceId() << "}"
-                     << ": call method \"" << cntl->MethodId() << "\" timeout, not response"
-                     << ": server_timeout_us=" << (cntl->ServerTimeout() * 1000)
-                     << ", server_used_time_us=" << server_used_time_us
-                     << ", process_time_us=" << process_time_us;
+			LOG(WARNING) << "OnCallMethodDone(): " << RpcEndpointToString(_remote_endpoint)
+						 << " {" << cntl->SequenceId() << "}"
+						 << ": call method \"" << cntl->MethodId() << "\" timeout, not response"
+						 << ": server_timeout_us=" << (cntl->ServerTimeout() * 1000)
+						 << ", server_used_time_us=" << server_used_time_us
+						 << ", process_time_us=" << process_time_us;
 #else
-        SLOG(WARNING, "OnCallMethodDone(): %s {%lu}: call method \"%s\" timeout, not response: "
-                "server_timeout_us=%lld, server_used_time_us=%lld, process_time_us=%lld",
-                RpcEndpointToString(_remote_endpoint).c_str(), cntl->SequenceId(),
-                cntl->MethodId().c_str(), (cntl->ServerTimeout() * 1000),
-                server_used_time_us, process_time_us);
+			SLOG(WARNING, "OnCallMethodDone(): %s {%lu}: call method \"%s\" timeout, not response: "
+					"server_timeout_us=%lld, server_used_time_us=%lld, process_time_us=%lld",
+					RpcEndpointToString(_remote_endpoint).c_str(), cntl->SequenceId(),
+					cntl->MethodId().c_str(), (cntl->ServerTimeout() * 1000),
+					server_used_time_us, process_time_us);
 #endif
-            delete request;
-            delete response;
-            delete controller;
-            return;
+			//Add by DotDot, QQ:824044645
+            SendFailedResponse(cntl->RpcServerStream(), RPC_ERROR_REQUEST_TIMEOUT, "Server OnCallMethodDone Timerout");
+			delete request;
+			delete response;
+			delete controller;
+			return;
         }
     }
 
@@ -147,9 +151,11 @@ void RpcRequest::OnCallMethodDone(
     {
 #if defined( LOG )
 #else
-        SLOG(DEBUG, "OnCallMethodDone(): %s {%lu}: call method \"%s\" succeed",
+        int64 server_used_time_us =
+            (cntl->FinishProcessTime() - cntl->RequestReceivedTime()).total_microseconds();
+        SLOG(TRACE, "OnCallMethodDone(): %s {%lu}: call method \"%s\" succeed,total:%d,method:%d",
                 RpcEndpointToString(_remote_endpoint).c_str(), cntl->SequenceId(),
-                cntl->MethodId().c_str());
+                cntl->MethodId().c_str(), server_used_time_us, process_time_us);
 #endif
         SendSucceedResponse(cntl, response);
     }

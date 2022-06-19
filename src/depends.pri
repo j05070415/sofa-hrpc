@@ -1,12 +1,11 @@
 
+HRPC_ROOT=$$PWD/../..
 linux {
 CONFIG += c++17
-HRPC_ROOT=/home/swj/Codes/hrpc
 }
 
 win32 {
 CONFIG += c++11
-HRPC_ROOT=$$PWD/..
 }
 
 RAPID_JSON=$$HRPC_ROOT/third/rapidjson

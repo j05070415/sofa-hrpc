@@ -255,7 +255,7 @@ void RpcClientImpl::CallMethod(const google::protobuf::Message* request,
 
     // prepare request buffer
     RpcMeta meta;
-	meta.set_server_timeout(1000);
+	meta.set_server_timeout(3000);
     meta.set_type(RpcMeta::REQUEST);
     meta.set_sequence_id(cntl->SequenceId());
     meta.set_method(cntl->MethodId());
@@ -332,21 +332,22 @@ void RpcClientImpl::CallMethod(const google::protobuf::Message* request,
     cntl->PushDoneCallback(boost::bind(&RpcClientImpl::DoneCallback, shared_from_this(), response, _1));
 
     // add to timeout manager if need
-    if (timeout > 0)
-    {
-        if (!_timeout_manager->add(cntl))
-        {
-#if defined( LOG )
-            LOG(ERROR) << "CallMethod(): " << RpcEndpointToString(cntl->RemoteEndpoint())
-                       << ": add to timeout manager failed: timeout=" << timeout << "ms";
-#else
-            SLOG(ERROR, "CallMethod(): %s: add to timeout manager failed: timeout=%lldms",
-                    RpcEndpointToString(cntl->RemoteEndpoint()).c_str(), timeout);
-#endif
-            cntl->Done(RPC_ERROR_REQUEST_TIMEOUT, "add to timeout manager failed, maybe too short timeout");
-            return;
-        }
-    }
+    // Modified by DotDot 2021/09/20, QQ:824044645
+//    if (timeout > 0)
+//    {
+//        if (!_timeout_manager->add(cntl))
+//        {
+//#if defined( LOG )
+//            LOG(ERROR) << "CallMethod(): " << RpcEndpointToString(cntl->RemoteEndpoint())
+//                       << ": add to timeout manager failed: timeout=" << timeout << "ms";
+//#else
+//            SLOG(ERROR, "CallMethod(): %s: add to timeout manager failed: timeout=%lldms",
+//                    RpcEndpointToString(cntl->RemoteEndpoint()).c_str(), timeout);
+//#endif
+//            cntl->Done(RPC_ERROR_REQUEST_TIMEOUT, "add to timeout manager failed, maybe too short timeout");
+//            return;
+//        }
+//    }
 
     // call method
     stream->call_method(cntl);
@@ -431,7 +432,8 @@ void RpcClientImpl::DoneCallback(google::protobuf::Message* response,
         const RpcControllerImplPtr& cntl)
 {
     // erase from RpcTimeoutManager
-    _timeout_manager->erase(cntl->TimeoutId());
+    // Modified by DotDot, 2021/09/20, QQ:824044645
+//    _timeout_manager->erase(cntl->TimeoutId());
 
     // deserialize response
     if (!cntl->Failed())

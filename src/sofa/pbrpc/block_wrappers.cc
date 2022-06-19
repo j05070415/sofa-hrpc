@@ -200,10 +200,10 @@ uint32_t SnappyOutputStream::RawCompress(char* input_buffer, size_t input_size,
 
 void LZ4InputStream::RawUncompress(char* input_buffer, uint32_t compressed_size) {
     if (!_output_buffer) {
-        _output_buffer = new char[BLOCKSIZE];
+        _output_buffer = new char[16*BLOCKSIZE];
     }
     _output_buffer_size = LZ4_uncompress_unknownOutputSize(input_buffer,
-        _output_buffer, compressed_size, BLOCKSIZE);
+        _output_buffer, compressed_size, 16*BLOCKSIZE);
 }
 
 uint32_t LZ4OutputStream::MaxCompressedLength(size_t input_size)

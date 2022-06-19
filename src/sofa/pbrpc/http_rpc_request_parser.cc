@@ -52,7 +52,7 @@ bool HTTPRpcRequestParser::CheckMagicString(const char* magic_string)
     return false;
 }
 
-int HTTPRpcRequestParser::Parse(const char* buf,
+int HTTPRpcRequestParser::Parse(const std::shared_ptr<char>& buf,
         int data_size, int offset, int* bytes_consumed)
 {
     if (data_size == 0)
@@ -62,8 +62,8 @@ int HTTPRpcRequestParser::Parse(const char* buf,
     *bytes_consumed = 0;
     if (_state != PS_BODY)
     {
-        const char* ptr = buf + offset;
-        const char* end = buf + offset + data_size;
+        const char* ptr = buf.get() + offset;
+        const char* end = buf.get() + offset + data_size;
         std::string err;
         for (; ptr != end; ++ptr)
         {
@@ -85,7 +85,7 @@ int HTTPRpcRequestParser::Parse(const char* buf,
                 break;
             }
         }
-        *bytes_consumed = ptr - (buf + offset);
+        *bytes_consumed = ptr - (buf.get() + offset);
         data_size -= *bytes_consumed;
         offset += *bytes_consumed;
     }
@@ -101,7 +101,7 @@ int HTTPRpcRequestParser::Parse(const char* buf,
             return 0;
         }
         int consume = (std::min)(data_size, bytes_remain);
-        _req->_req_body->Append(BufHandle(const_cast<char*>(buf), consume, offset));
+        _req->_req_body->Append(BufHandle(buf, consume, offset));
         *bytes_consumed += consume;
         if (_content_length == _req->_req_body->TotalCount())
         {

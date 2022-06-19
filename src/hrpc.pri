@@ -1,10 +1,9 @@
 
 include(depends.pri)
-INCLUDEPATH += $$HRPC_ROOT/src
-LIBS += -L$$HRPC_ROOT/bin
+INCLUDEPATH += $$HRPC_ROOT/third/hrpc
+LIBS += -L$$HRPC_ROOT/src/bin
 
 win32 {
-DEFINES -= UNICODE
 CONFIG(debug, debug|release) {
         QMAKE_CXXFLAGS_DEBUG = -MDd
         LIBS += -lsofa-hrpcd -llibprotobufd -lsnappyd -lzlibwapi

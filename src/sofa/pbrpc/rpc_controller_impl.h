@@ -188,6 +188,9 @@ public:
     // -----------------------------------------------------------------
     bool IsDone() const
     {
+		//Modify by DotDot, QQ:824044645£¬ 2020/12/12
+		std::lock_guard<std::mutex> locker(_domutex);
+
         return _is_done == DONE;
     }
 
@@ -208,16 +211,20 @@ public:
 
     void PushDoneCallback(const InternalDoneCallback& callback)
     {
-        SCHECK(callback);
-        _done_callbacks.push_back(callback);
+		//Modify by DotDot, QQ:824044645£¬ 2020/12/12
+		std::lock_guard<std::mutex> locker(_domutex);
+		if (callback != nullptr)
+			_done_callbacks.push_back(callback);
     }
 
     void Done(int error_code, const std::string& reason)
     {
         //Modify by DotDot, QQ:824044645
         // make sure that the callback is only called once.
-		if (atomic_comp_swap(_is_done, DONE, NOT_DONE) == NOT_DONE)
+		std::lock_guard<std::mutex> locker(_domutex);
+        if (_is_done != DONE)
         {
+			_is_done = DONE;
             SetFailed(error_code, reason);
 
             while (!_done_callbacks.empty())
@@ -445,7 +452,9 @@ private:
     // used only in client side
     static const int NOT_DONE = 0;
     static const int DONE = 1;
-    std::atomic_int _is_done; // 0 means not done, 1 means aleady done
+	//Modified by DotDot, QQ:824044645, 2020/12/12
+	mutable std::mutex _domutex;
+    int _is_done = 0; // 0 means not done, 1 means aleady done
     bool _is_request_sent; // if the request has been sent
     int64 _sent_bytes; // sent bytes including the header
     bool _is_start_cancel; // if has started canceling the call

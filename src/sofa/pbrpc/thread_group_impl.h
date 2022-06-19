@@ -41,8 +41,9 @@ public:
         IOService* io_service;
         ThreadInitFunc init_func;
         ThreadDestFunc dest_func;
-        AtomicCounter init_done;
-        AtomicCounter init_fail;
+        //DotDot, QQ:824044645
+        std::atomic_ulong init_done = {0};
+        std::atomic_ulong init_fail = {0};
 
         ThreadParam() : id(0), io_service(NULL), init_func(NULL), dest_func(NULL) {}
         ~ThreadParam() {}
@@ -183,6 +184,8 @@ public:
         delete _io_service_work;
         _io_service_work = NULL;
 
+        //add by DotDot, 2020/20/22
+        _io_service.stop();
         for (int i = 0; i < _thread_num; ++i)
         {
             _threads[i].join();

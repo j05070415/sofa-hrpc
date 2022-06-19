@@ -8,3 +8,5 @@ third/snappy/lib
 third/zlib/include
 third/zlib/lib
 *.user
+sofa-hrpc
+sofa-hrpc.pub

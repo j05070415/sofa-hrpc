@@ -15,34 +15,40 @@ namespace pbrpc {
 class WaitEvent
 {
 public:
-    WaitEvent() : _signaled(false)
+    WaitEvent(int timeout) : _timeout(timeout)
     {
     }
     ~WaitEvent() 
     {
+		_stop = true;
+		_cond.notify_all();
     }
 
-    void Wait()
+    void Reset()
+    {
+        _stop = false;
+		_cond.notify_all();
+    }
+
+    bool Wait()
     {
         std::unique_lock<std::mutex> l(_lock);
-        while (!_signaled)
-        {
-            _cond.wait(l);
-        }
-        _signaled = false;
+        return _cond.wait_for(l, std::chrono::milliseconds(_timeout), [this]{return _stop;});
     }
 
     void Signal()
     {
         std::unique_lock<std::mutex> l(_lock);
-        _signaled = true;
+        _stop = true;
         _cond.notify_all();
     }
 
 private:
     std::mutex _lock;
     std::condition_variable _cond;
-    bool _signaled;
+    bool _stop = false;
+    //ms
+    int _timeout = 3000;
 };
 
 } // namespace pbrpc

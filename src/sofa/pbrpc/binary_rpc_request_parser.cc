@@ -7,7 +7,7 @@
 namespace sofa {
 namespace pbrpc {
 
-#define SOFA_PBRPC_MAX_RPC_MESSAGE_SIZE (64 << 20) 
+#define SOFA_PBRPC_MAX_RPC_MESSAGE_SIZE (512 << 20)
 const int64 BinaryRpcRequestParser::MAX_MESSAGE_SIZE = 
     SOFA_PBRPC_MAX_RPC_MESSAGE_SIZE + sizeof(RpcMessageHeader);
 
@@ -36,7 +36,7 @@ void BinaryRpcRequestParser::Reset()
 
 bool BinaryRpcRequestParser::CheckMagicString(const char* magic_string)
 {
-    SCHECK(_state == PS_MAGIC_STRING && _bytes_recved == 0);
+//    SCHECK(_state == PS_MAGIC_STRING && _bytes_recved == 0);
     if (*reinterpret_cast<const uint32*>(magic_string) == 
             _req->_req_header.magic_str_value)
     {
@@ -47,7 +47,7 @@ bool BinaryRpcRequestParser::CheckMagicString(const char* magic_string)
     return false;
 }
 
-int BinaryRpcRequestParser::Parse(const char* buf,
+int BinaryRpcRequestParser::Parse(const std::shared_ptr<char>& buf,
         int data_size, int offset, int* bytes_consumed)
 {
     if (data_size == 0)
@@ -55,14 +55,14 @@ int BinaryRpcRequestParser::Parse(const char* buf,
         return 0;
     }
     *bytes_consumed = 0;
-    int64 bytes_remain, consume;
+    int64 bytes_remain = 0, consume = 0;
     switch (_state)
     {
         case PS_MSG_HEADER:
             bytes_remain = sizeof(RpcMessageHeader) - _bytes_recved;
             consume = (std::min)(static_cast<int64>(data_size), bytes_remain);
             memcpy(reinterpret_cast<char*>(&_req->_req_header) + _bytes_recved,
-                    buf + offset, consume);
+                    buf.get() + offset, consume);
             *bytes_consumed += consume;
             _bytes_recved += consume;
             if (_bytes_recved < static_cast<int>(sizeof(RpcMessageHeader)))
@@ -101,7 +101,7 @@ int BinaryRpcRequestParser::Parse(const char* buf,
                 return -1;
             }
             consume = (std::min)(static_cast<int64>(data_size), bytes_remain);
-            _req->_req_body->Append(BufHandle(const_cast<char*>(buf), consume, offset));
+            _req->_req_body->Append(BufHandle(buf, consume, offset));
             *bytes_consumed += consume;
             _bytes_recved += consume;
             if (_bytes_recved == _req->_req_header.message_size)

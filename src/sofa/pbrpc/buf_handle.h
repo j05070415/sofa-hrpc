@@ -13,25 +13,25 @@ namespace pbrpc {
 
 struct BufHandle
 {
-    mutable boost::shared_ptr<std::mutex> mutex; // data locker
-    char* data; // block header
+//    mutable boost::shared_ptr<std::mutex> mutex; // data locker
+    std::shared_ptr<char> data; // block header
     int   size; // data size
     union {
         int capacity; // block capacity, used by WriteBuffer
         int offset;   // start position in the block, used by ReadBuffer
     };
 
-    BufHandle(char* _data, int _capacity)
+    BufHandle(const std::shared_ptr<char>& _data, int _capacity)
         : data(_data)
         , size(0)
         , capacity(_capacity)
-        , mutex(new std::mutex){}
+        /*, mutex(new std::mutex)*/{}
 
-    BufHandle(char* _data, int _size, int _offset)
+    BufHandle(const std::shared_ptr<char>& _data, int _size, int _offset)
         : data(_data)
         , size(_size)
         , offset(_offset)
-        , mutex(new std::mutex) {}
+        /*, mutex(new std::mutex)*/ {}
 }; // class BufHandle
 
 } // namespace pbrpc

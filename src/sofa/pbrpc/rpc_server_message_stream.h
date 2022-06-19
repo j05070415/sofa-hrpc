@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 
 #include <sofa/pbrpc/rpc_error_code.h>
 #include <sofa/pbrpc/rpc_byte_stream.h>
@@ -16,6 +17,7 @@
 #include <sofa/pbrpc/flow_controller.h>
 #include <sofa/pbrpc/rpc_request_parser.h>
 #include <sofa/pbrpc/string_utils.h>
+#include <sofa/pbrpc/binary_rpc_request_parser.h>
 
 namespace sofa {
 namespace pbrpc {
@@ -67,11 +69,16 @@ public:
 
     virtual ~RpcServerMessageStream()
     {
-        if (_tran_buf != NULL)
-        {
-            TranBufPool::free(_tran_buf);
-            _tran_buf = NULL;
-        }
+        // Add by DotDot, 2021/9/19, QQ:824044645
+//        std::lock_guard<MutexLock> locker(_tranmutex);
+//        if (_tran_buf != NULL)
+//        {
+//            free(_tran_buf);
+//            _tran_buf = NULL;
+//        }
+        _running = false;
+        if (_splitshandler.joinable())
+            _splitshandler.join();
     }
 
     // Async send message to the remote endpoint. The message may be first
@@ -205,6 +212,8 @@ private:
         SOFA_PBRPC_FUNCTION_TRACE;
 
         // prepare receiving
+        // Add by DotDot, 2020/9/5, QQ:824044645
+        std::lock_guard<MutexLock> locker(_tranmutex);
         reset_receiving_env();
         if (!reset_tran_buf())
         {
@@ -241,24 +250,37 @@ private:
             return;
         }
 
-        _last_rw_ticks = _ticks;
-        ++_total_received_count;
-        _total_received_size += bytes_transferred;
-
+        // Add by DotDot, 2020/9/5, QQ:824044645
+        std::lock_guard<MutexLock> locker(_tranmutex);
         std::deque<RpcRequestPtr> received_messages;
         if (!split_and_process_message(_receiving_data,
                                        static_cast<int>(bytes_transferred), &received_messages))
         {
+            printf("split_and_process_message error!\n");
             close("broken stream");
+			reset_receiving_env();
             return;
         }
+
+		_last_rw_ticks = _ticks;
+		++_total_received_count;
+		_total_received_size += bytes_transferred;
 
         _receiving_data += bytes_transferred;
         _receiving_size -= bytes_transferred;
 
+        // check negtive
+        if (_receiving_size < 0 && !reset_tran_buf())
+        {
+            close("invalid size");
+            printf("invalid size:%d\n", _receiving_size);
+            return;
+        }
+
         // check if current tran buf is used out
         if (_receiving_size == 0 && !reset_tran_buf())
         {
+            printf("out of memory\n");
             close("out of memory");
             return;
         }
@@ -270,11 +292,33 @@ private:
         try_start_receive();
 
         // process messages
-        while (!is_closed() && !received_messages.empty())
-        {
-            on_received(received_messages.front());
-            received_messages.pop_front();
-        }
+    //    {
+    //        std::lock_guard<std::mutex> _(_splitbuffmutex);
+    //        _splitbuff.insert(_splitbuff.end(), received_messages.begin(), received_messages.end());
+    //    }
+    //    if (!_splitshandler.joinable()) {
+    //        _splitshandler = std::thread([this]{
+				//printf("splits:%d\n", _splitbuff.size());
+    //            decltype (_splitbuff) dts;
+    //            {
+    //                std::lock_guard<std::mutex> _(_splitbuffmutex);
+    //                dts = std::move(_splitbuff);
+    //            }
+    //            for (auto &value : dts) {
+    //                if (is_closed() || !_running) break;
+
+				//	printf("on_received1\n");
+    //                on_received(value);
+				//	printf("on_received2\n");
+    //            }
+				//printf("count:%d\n", dts.size());
+    //        });
+    //    }
+
+		for (auto &value : received_messages) {
+			if (is_closed()) break;
+			on_received(value);
+		}
     }
 
     // Callback of "async_write_some()".
@@ -537,9 +581,10 @@ private:
                     // now send
                     _sent_size = 0;
                     bool ret = _sending_message->Next(
-                                reinterpret_cast<const void**>(&_sending_data), &_sending_size);
-                    SCHECK(ret);
-                    async_write_some(_sending_data, _sending_size);
+                                reinterpret_cast<const void**>(&_sending_data), &_sending_size);;
+                    // Modified by DotDot, 2020/11/3, QQ:824044645
+                    if (ret)
+                        async_write_some(_sending_data, _sending_size);
                     started = true;
                     break;
                 }
@@ -596,7 +641,7 @@ private:
 
         while (size > 0)
         {
-            int consumed;
+            int consumed = 0;
             if (_magic_string_recved_bytes < 4)
             {
                 // read magic string
@@ -621,8 +666,11 @@ private:
                     return true;
                 }
             }
+
+            int offset = data - _tran_buf.get();
             int ret = _current_rpc_request_parser->Parse(
-                        _tran_buf, size, data - _tran_buf, &consumed);
+                        _tran_buf, size, offset, &consumed);
+
             _cur_recved_bytes += consumed;
             if (ret == 0)
             {
@@ -669,13 +717,14 @@ private:
             }
         }
         // no parser match, print error
-        std::string magic_str = StringUtils::c_escape_string(_magic_string, sizeof(_magic_string));
+        printf("choose_rpc_request_parser() failed, reset\n");
+//        std::string magic_str = StringUtils::c_escape_string(_magic_string, sizeof(_magic_string));
 #if defined( LOG )
         LOG(ERROR) << "choose_rpc_request_parser(): " << RpcEndpointToString(_remote_endpoint)
                    << ": un-identified magic string: " << magic_str;
 #else
-        SLOG(ERROR, "choose_rpc_request_parser(): %s: un-identified magic string: %s",
-             RpcEndpointToString(_remote_endpoint).c_str(), magic_str.c_str());
+//        SLOG(ERROR, "choose_rpc_request_parser(): %s: un-identified magic string: %s",
+//             RpcEndpointToString(_remote_endpoint).c_str(), magic_str.c_str());
 #endif
         _current_rpc_request_parser.reset();
         return false;
@@ -705,16 +754,9 @@ private:
     // Reset tran buf variables for receiving message.
     bool reset_tran_buf()
     {
-        if (_tran_buf != NULL)
-        {
-            // free old buf, in fact just decrease ref count
-            TranBufPool::free(_tran_buf);
-            _tran_buf = NULL;
-        }
-
-        _tran_buf = reinterpret_cast<char*>(
-                    TranBufPool::malloc(_read_buffer_base_block_factor));
-        if(_tran_buf == NULL)
+        int size = SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << _read_buffer_base_block_factor;
+        _tran_buf.reset(new char[size]);
+        if(!_tran_buf)
         {
 #if defined( LOG )
             LOG(ERROR) << "reset_tran_buf(): " << RpcEndpointToString(_remote_endpoint)
@@ -725,8 +767,8 @@ private:
 #endif
             return false;
         }
-        _receiving_data = reinterpret_cast<char*>(_tran_buf);
-        _receiving_size = TranBufPool::capacity(_tran_buf);
+        _receiving_data = _tran_buf.get();
+        _receiving_size = size;
         return true;
     }
 
@@ -781,9 +823,16 @@ private:
     RpcRequestParserPtr _current_rpc_request_parser;
 
     // tran buf for reading data
-    char* _tran_buf; // strong ptr
-    char* _receiving_data; // weak ptr
+    MutexLock _tranmutex;
+    std::shared_ptr<char> _tran_buf;
+//    char* _tran_buf = nullptr; // strong ptr
+    char* _receiving_data = nullptr; // weak ptr
     int64 _receiving_size;
+
+    std::thread _splitshandler;
+    MutexLock _splitbuffmutex;
+    std::deque<RpcRequestPtr> _splitbuff;
+    bool _running = true;
 
     // send and receive token
     static const int TOKEN_FREE = 0;

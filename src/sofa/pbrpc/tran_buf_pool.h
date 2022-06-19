@@ -34,26 +34,26 @@ public:
     //
     // Postconditions:
     // * If succeed, the reference count of the block is equal to 1.
-    inline static void * malloc(int factor = 0)
-    {
-        void * p = ::malloc(SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << factor);
-        if (p != NULL)
-        {
-            *(reinterpret_cast<int*>(p)) = SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << factor;
-            *(reinterpret_cast<int*>(p) + 1) = 1;
-            p = reinterpret_cast<int*>(p) + 2;
-        }
-        return p;
-    }
+//    inline static void * malloc(int factor = 0)
+//    {
+//        void * p = ::malloc(SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << factor);
+//        if (p != NULL)
+//        {
+//            *(reinterpret_cast<int*>(p)) = SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << factor;
+//            *(reinterpret_cast<int*>(p) + 1) = 1;
+//            p = reinterpret_cast<int*>(p) + 2;
+//        }
+//        return p;
+//    }
 
     // Return block size pointed by "p", including the hidden header.
     //
     // Preconditions:
     // * The block pointed by "p" was allocated by this pool and is in use currently.
-    inline static int block_size(void * p)
-    {
-        return *(reinterpret_cast<int*>(p) - 2);
-    }
+//    inline static int block_size(void * p)
+//    {
+//        return *(reinterpret_cast<int*>(p) - 2);
+//    }
 
     // Return capacity size pointed by "p", not including the hidden header.
     //
@@ -61,34 +61,34 @@ public:
     //
     // Preconditions:
     // * The block pointed by "p" was allocated by this pool and is in use currently.
-    inline static int capacity(void * p)
-    {
-        return *(reinterpret_cast<int*>(p) - 2) - sizeof(int) * 2;
-    }
+//    inline static int capacity(void * p)
+//    {
+//        return *(reinterpret_cast<int*>(p) - 2) - sizeof(int) * 2;
+//    }
 
     // Increase the reference count of the block.
     //
     // Preconditions:
     // * The block pointed by "p" was allocated by this pool and is in use currently.
-    inline static void add_ref(void * p)
-    {
-//        sofa::pbrpc::atomic_inc(reinterpret_cast<int*>(p) - 1);
-        ++(*(reinterpret_cast<int*>(p) - 1));
-    }
+//    inline static void add_ref(void * p)
+//    {
+////        sofa::pbrpc::atomic_inc(reinterpret_cast<int*>(p) - 1);
+//        ++(*(reinterpret_cast<int*>(p) - 1));
+//    }
 
     // Decrease the reference count of the block.  If the reference count equals
     // to 0 afterward, then put the block back to the free list
     //
     // Preconditions:
     // * The block pointed by "p" was allocated by this pool and is in use currently.
-    inline static void free(void * p)
-    {
-//        if (sofa::pbrpc::atomic_dec_ret_old(reinterpret_cast<int*>(p) - 1) == 1)
-        if ((--(*(reinterpret_cast<int*>(p) - 1))) == 0)
-        {
-            ::free(reinterpret_cast<int*>(p) - 2);
-        }
-    }
+//    inline static void free(void * p)
+//    {
+//        //if (sofa::pbrpc::atomic_dec_ret_old(reinterpret_cast<int*>(p) - 1) == 1)
+//        if ((--(*(reinterpret_cast<int*>(p) - 1))) == 0)
+//        {
+//            ::free(reinterpret_cast<int*>(p) - 2);
+//        }
+//    }
 }; // class TranBufPool
 
 } // namespace pbrpc

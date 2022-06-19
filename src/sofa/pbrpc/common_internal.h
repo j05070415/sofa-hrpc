@@ -70,10 +70,12 @@ typedef boost::shared_ptr<IOServicePool> IOServicePoolPtr;
 class WebService;
 typedef boost::shared_ptr<WebService> WebServicePtr;
 
+//QQ:824044645
+#include <atomic>
 #define SOFA_PBRPC_DECLARE_RESOURCE_COUNTER(name_) \
-    extern sofa::pbrpc::AtomicCounter g_sofa_counter_##name_
+    extern std::atomic_uint g_sofa_counter_##name_
 #define SOFA_PBRPC_DEFINE_RESOURCE_COUNTER(name_) \
-    sofa::pbrpc::AtomicCounter g_sofa_counter_##name_(0)
+    std::atomic_uint g_sofa_counter_##name_(0)
 #define SOFA_PBRPC_INC_RESOURCE_COUNTER(name_) \
     ++g_sofa_counter_##name_
 #define SOFA_PBRPC_DEC_RESOURCE_COUNTER(name_) \

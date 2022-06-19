@@ -7,6 +7,8 @@
 
 #include <deque>
 #include <string>
+//Modified by DotDot, 2021/10/03, QQ:824044645
+#include <mutex>
 
 #include <google/protobuf/io/zero_copy_stream.h>
 
@@ -18,9 +20,9 @@ namespace pbrpc {
 
 // Defined in this file.
 class ReadBuffer;
-typedef boost::shared_ptr<ReadBuffer> ReadBufferPtr;
+typedef std::shared_ptr<ReadBuffer> ReadBufferPtr;
 class WriteBuffer;
-typedef boost::shared_ptr<WriteBuffer> WriteBufferPtr;
+typedef std::shared_ptr<WriteBuffer> WriteBufferPtr;
 
 typedef std::deque<BufHandle> BufHandleList;
 typedef std::deque<BufHandle>::iterator BufHandleListIterator;
@@ -61,6 +63,9 @@ public:
     int64 ByteCount() const;
 
 private:
+    //Modified by DotDot, 2021/10/03, QQ:824044645
+//    std::mutex _mutex;
+
     BufHandleList _buf_list;
     int64 _total_block_size; // total block size in the buffer
     int64 _total_bytes; // total bytes in the buffer

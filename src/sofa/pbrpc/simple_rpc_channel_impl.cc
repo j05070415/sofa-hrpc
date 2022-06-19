@@ -89,7 +89,7 @@ void SimpleRpcChannelImpl::CallMethod(const ::google::protobuf::MethodDescriptor
     if (done == NULL)
     {
         cntl->SetSync(); // null done means sync call
-        cntl->SetWaitEvent(WaitEventPtr(new WaitEvent()));
+        cntl->SetWaitEvent(WaitEventPtr(new WaitEvent(cntl->Timeout())));
     }
 
     // check if mocked
@@ -156,7 +156,10 @@ void SimpleRpcChannelImpl::WaitDone(const RpcControllerImplPtr& cntl)
     // if sync, wait for callback done
     if (cntl->IsSync())
     {
-        cntl->WaitEvent()->Wait();
+        //Modify by DotDot, QQ:824044645, 2020/12/05
+		auto ret = cntl->WaitEvent()->Wait();
+        if (!ret)
+            cntl->Done(RPC_ERROR_REQUEST_TIMEOUT, "sync call wait condition timeout");
         SCHECK(cntl->IsDone());
     }
 }

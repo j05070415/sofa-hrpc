@@ -234,48 +234,9 @@ private:
         }
 
         //Modify by DotDot, QQ:824044645
-        /*if (!meta.failed())
+        if (meta.failed())
         {
-#if defined( LOG )
-            LOG(ERROR) << "on_received(): " << RpcEndpointToString(_remote_endpoint)
-                       << " {" << meta.sequence_id() << "}"
-                       << ": bad rpc meta: \"failed\" field not set";
-#else
-            SLOG(ERROR,  "on_received(): %s {%lu}: bad rpc meta: \"failed\" field not set",
-                    RpcEndpointToString(_remote_endpoint).c_str(), meta.sequence_id());
-#endif
-            cntl->Done(RPC_ERROR_PARSE_RESPONSE_MESSAGE, "rpc meta: \"failed\" field not set");
-        }
-        else */if (meta.failed())
-        {
-//            if (!meta.has_error_code())
-//            {
-//#if defined( LOG )
-//                LOG(ERROR) << "on_received(): " << RpcEndpointToString(_remote_endpoint)
-//                           << " {" << meta.sequence_id() << "}"
-//                           << ": bad rpc meta: \"error_code\" field not set";
-//#else
-//                SLOG(ERROR,  "on_received(): %s {%lu}: bad rpc meta: \"error_code\" field not set",
-//                        RpcEndpointToString(_remote_endpoint).c_str(), meta.sequence_id());
-//#endif
-//                cntl->Done(RPC_ERROR_PARSE_RESPONSE_MESSAGE, "rpc meta: \"error_code\" field not set");
-//            }
-//            else if (!meta.has_reason())
-//            {
-//#if defined( LOG )
-//                LOG(ERROR) << "on_received(): " << RpcEndpointToString(_remote_endpoint)
-//                           << " {" << meta.sequence_id() << "}"
-//                           << ": bad rpc meta: \"reason\" field not set";
-//#else
-//                SLOG(ERROR,  "on_received(): %s {%lu}: bad rpc meta: \"reason\" field not set",
-//                        RpcEndpointToString(_remote_endpoint).c_str(), meta.sequence_id());
-//#endif
-//                cntl->Done(RPC_ERROR_PARSE_RESPONSE_MESSAGE, "rpc meta: \"reason\" field not set");
-//            }
-//            else
-//            {
-                cntl->Done(meta.error_code(), meta.reason());
-//            }
+            cntl->Done(meta.error_code(), meta.reason());
         }
         else // !meta.failed()
         {

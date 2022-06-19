@@ -92,7 +92,8 @@ private:
     volatile bool _is_running;
     MutexLock _start_stop_lock;
 
-    AtomicCounter64 _next_request_id;
+    //DotDot, QQ:824044645
+	std::atomic_ullong _next_request_id = {0};
 
     PTime _epoch_time;
     int64 _ticks_per_second;

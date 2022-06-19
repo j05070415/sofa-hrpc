@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 
 #include <sofa/pbrpc/rpc_byte_stream.h>
 #include <sofa/pbrpc/buffer.h>
@@ -64,11 +65,12 @@ public:
 
     virtual ~RpcMessageStream()
     {
-        if (_tran_buf != NULL)
-        {
-            TranBufPool::free(_tran_buf);
-            _tran_buf = NULL;
-        }
+//        std::lock_guard<FastLock> _(_pending_lock);
+//        if (_tran_buf != nullptr)
+//        {
+//            free(_tran_buf);
+//            _tran_buf = NULL;
+//        }
     }
 
     // Async send message to the remote endpoint. The message may be first
@@ -246,6 +248,7 @@ private:
         ++_total_received_count;
         _total_received_size += bytes_transferred;
 
+        std::lock_guard<FastLock> _(_pending_lock);
         std::deque<ReceivedItem> received_messages;
         if (!split_and_process_message(_receiving_data,
                     static_cast<int>(bytes_transferred), &received_messages))
@@ -379,6 +382,8 @@ private:
     {
         SOFA_PBRPC_FUNCTION_TRACE;
 
+        // Modified by DotDot, 2020/11/13, QQ:824044645, add lock
+        std::lock_guard<FastLock> _(_pending_lock);
         _swapped_calls.push_front(PendingItem(message, cookie));
         ++_swapped_message_count;
         _swapped_data_size += message->TotalCount();
@@ -404,13 +409,15 @@ private:
     {
         SOFA_PBRPC_FUNCTION_TRACE;
 
+        // swap from _pending_calls
+        // Modified by DotDot, 2020/11/13, QQ:824044645
+        std::lock_guard<FastLock> _(_pending_lock);
         if (_swapped_calls.empty() && _pending_message_count > 0)
         {
-            // swap from _pending_calls
-            std::lock_guard<FastLock> _(_pending_lock);
             if (!_pending_calls.empty())
             {
-                _swapped_calls.swap(_pending_calls);
+                // Modified by DotDot, 2020/11/13, QQ:824044645
+                _swapped_calls = std::move(_pending_calls);
                 _swapped_message_count = _pending_message_count;
                 _swapped_data_size = _pending_data_size;
                 _swapped_buffer_size = _pending_buffer_size;
@@ -423,9 +430,12 @@ private:
         if (!_swapped_calls.empty())
         {
             // fetch the top one
-            *message = _swapped_calls.front().message;
-            *cookie = _swapped_calls.front().cookie;
+            // Modified by DotDot, 2020/11/13, QQ:824044645, add std::move, disable copy
+            auto tmp = _swapped_calls.front();
+            *message = std::move(tmp.message);
+            *cookie = std::move(tmp.cookie);
             _swapped_calls.pop_front();
+            if (message->get() == nullptr || cookie->get() == nullptr) return false;
             // update stats
             --_swapped_message_count;
             _swapped_data_size -= (*message)->TotalCount();
@@ -540,8 +550,9 @@ private:
                     _sent_size = 0;
                     bool ret = _sending_message->Next(
                             reinterpret_cast<const void**>(&_sending_data), &_sending_size);
-                    SCHECK(ret);
-                    async_write_some(_sending_data, _sending_size);
+                    // Modified by DotDot, 2020/11/3, QQ:824044645
+                    if (ret)
+                        async_write_some(_sending_data, _sending_size);
                     started = true;
                     break;
                 }
@@ -632,7 +643,7 @@ private:
             if (_received_message_size + size < message_size)
             {
                 // all the remaining data belongs to the in-complete message
-                _receiving_message->Append(BufHandle(_tran_buf, size, data - _tran_buf));
+                _receiving_message->Append(BufHandle(_tran_buf, size, data - _tran_buf.get()));
                 _received_message_size += size;
                 return true;
             }
@@ -640,7 +651,7 @@ private:
             int64 consume_size = message_size - _received_message_size;
             if (consume_size > 0)
             {
-                _receiving_message->Append(BufHandle(_tran_buf, consume_size, data - _tran_buf));
+                _receiving_message->Append(BufHandle(_tran_buf, consume_size, data - _tran_buf.get()));
             }
             received_messages->push_back(ReceivedItem(_receiving_message, 
                         _receiving_header.meta_size, _receiving_header.data_size));
@@ -731,14 +742,8 @@ private:
     // Reset tran buf variables for receiving message.
     bool reset_tran_buf()
     {
-        if (_tran_buf != NULL)
-        {
-            // free old buf, in fact just decrease ref count
-            TranBufPool::free(_tran_buf);
-            _tran_buf = NULL;
-        }
-        _tran_buf = reinterpret_cast<char*>(
-                TranBufPool::malloc(_read_buffer_base_block_factor));
+        _tran_buf = std::shared_ptr<char>(new char
+                [SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << _read_buffer_base_block_factor]);
         if(_tran_buf == NULL)
         {
 #if defined( LOG )
@@ -750,8 +755,8 @@ private:
 #endif
             return false;
         }
-        _receiving_data = reinterpret_cast<char*>(_tran_buf);
-        _receiving_size = TranBufPool::capacity(_tran_buf);
+        _receiving_data = _tran_buf.get();
+        _receiving_size = SOFA_PBRPC_TRAN_BUF_BLOCK_BASE_SIZE << _read_buffer_base_block_factor;
         return true;
     }
 
@@ -820,7 +825,8 @@ private:
     bool _receiving_header_identified;
 
     // tran buf for reading data
-    char* _tran_buf; // strong ptr
+    std::shared_ptr<char> _tran_buf;
+//    char* _tran_buf; // strong ptr
     char* _receiving_data; // weak ptr
     int64 _receiving_size;
 
