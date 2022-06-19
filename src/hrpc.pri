@@ -1,7 +1,7 @@
 
 include(depends.pri)
-INCLUDEPATH += $$HRPC_ROOT/third/hrpc
-LIBS += -L$$HRPC_ROOT/src/bin
+INCLUDEPATH += $$HRPC_ROOT/src
+LIBS += -L$$HRPC_ROOT/bin
 
 win32 {
 CONFIG(debug, debug|release) {

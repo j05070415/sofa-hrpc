@@ -1,5 +1,5 @@
 
-HRPC_ROOT=$$PWD/../..
+HRPC_ROOT=$$PWD/..
 linux {
 CONFIG += c++17
 }

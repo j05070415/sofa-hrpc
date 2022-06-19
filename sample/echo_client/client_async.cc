@@ -5,8 +5,6 @@
 #include <sofa/pbrpc/pbrpc.h>
 #include "echo_service.pb.h"
 
-#include <QString>
-
 void EchoCallback(sofa::pbrpc::RpcController* cntl,
         sofa::pbrpc::test::EchoRequest* request,
         sofa::pbrpc::test::EchoResponse* response,
@@ -45,13 +43,13 @@ int main()
     sofa::pbrpc::RpcChannelOptions channel_options;
     sofa::pbrpc::RpcChannel rpc_channel(&rpc_client, "127.0.0.1:12321", channel_options);
 
-    for (int i=0; i<99999999; ++i) {
+    for (;;) {
         // Prepare parameters.
         sofa::pbrpc::RpcController* cntl = new sofa::pbrpc::RpcController();
-        cntl->SetTimeout(12000);
+        cntl->SetTimeout(1000);
         sofa::pbrpc::test::EchoRequest* request = new sofa::pbrpc::test::EchoRequest();
-        QString msg = QString("Hello from qinzuoyan: %1").arg(i);
-        request->set_message(msg.toStdString());
+//        QString msg = QString("Hello from qinzuoyan: %1").arg(i);
+        request->set_message("Hello from qinzuoyan");
         sofa::pbrpc::test::EchoResponse* response = new sofa::pbrpc::test::EchoResponse();
         bool callbacked = false;
         google::protobuf::Closure* done = sofa::pbrpc::NewClosure(
