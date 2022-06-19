@@ -9,7 +9,7 @@ CONFIG += c++11
 HRPC_ROOT=$$PWD/..
 }
 
-RAPID_JSON=$$HRPC_ROOT/third
+RAPID_JSON=$$HRPC_ROOT/third/rapidjson
 BOOST_DIR=$$HRPC_ROOT/third/boost
 PROTOBUF_DIR=$$HRPC_ROOT/third/protobuf
 SNAPPY_DIR=$$HRPC_ROOT/third/snappy

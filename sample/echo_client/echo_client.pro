@@ -4,7 +4,7 @@
 TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
-CONFIG -= qt
+#CONFIG -= qt
 
 include(../../src/hrpc.pri)
 
@@ -16,7 +16,7 @@ CONFIG(debug, debug|release) {
 }
 
 SOURCES += \
-    client_sync.cc \
+    client_async.cc \
     echo_service.pb.cc
 
 HEADERS += \

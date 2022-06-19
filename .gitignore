@@ -1,0 +1,10 @@
+third/boost/include
+third/boost/lib
+third/protobuf/include
+third/protobuf/lib
+third/rapidjson/rapidjson
+third/snappy/include
+third/snappy/lib
+third/zlib/include
+third/zlib/lib
+*.user

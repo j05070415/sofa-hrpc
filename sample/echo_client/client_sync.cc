@@ -14,7 +14,7 @@ int main()
 
     // Define an rpc channel.
     sofa::pbrpc::RpcChannelOptions channel_options;
-    sofa::pbrpc::RpcChannel rpc_channel(&g_rpc_client, "192.168.0.104:12321", channel_options);
+    sofa::pbrpc::RpcChannel rpc_channel(&g_rpc_client, "127.0.0.1:12321", channel_options);
 
     while (true)
     {
